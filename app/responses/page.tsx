@@ -138,6 +138,9 @@ export default function ResponsesPage() {
                 <div><span className="text-zinc-500">Status</span><p className="mt-1">{getStatusBadge(selectedResponse.status)}</p></div>
                 <div><span className="text-zinc-500">Response</span><p className="mt-1">{getResponseBadge(selectedResponse.response)}</p></div>
                 <div><span className="text-zinc-500">Duration</span><p className="font-semibold dark:text-white">{selectedResponse.duration}</p></div>
+                {/* BUG-004: Display appointment date and time */}
+                <div><span className="text-zinc-500">Appt. Date</span><p className="font-semibold dark:text-white">{selectedResponse.appointment_date || "—"}</p></div>
+                <div><span className="text-zinc-500">Appt. Time</span><p className="font-semibold dark:text-white">{selectedResponse.appointment_time || "—"}</p></div>
               </div>
             </div>
 
@@ -155,16 +158,15 @@ export default function ResponsesPage() {
 
             <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
               <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Recording</h3>
-              <div className="flex items-center gap-4 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800">
-                <button className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+              {/* BUG-002: No recording infrastructure — show clear unavailable state */}
+              <div className="flex items-center gap-3 rounded-lg border border-dashed border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 dark:bg-zinc-700">
                   <Phone className="h-4 w-4" />
-                </button>
-                <div className="flex-1">
-                  <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-700">
-                    <div className="h-2 w-1/3 rounded-full bg-violet-500"></div>
-                  </div>
                 </div>
-                <span className="text-xs font-medium text-zinc-500">00:15 / {selectedResponse.duration}</span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Recording unavailable</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Call duration: {selectedResponse.duration || "—"}</p>
+                </div>
               </div>
             </div>
             

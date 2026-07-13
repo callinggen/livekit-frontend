@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
-import { ChevronLeft, ChevronRight, Clock, Plus, Target, User, Bot, PhoneCall, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Plus, Target, User, Bot, PhoneCall, Calendar as CalendarIcon, X, Save } from "lucide-react";
 import Badge, { BadgeVariant } from "@/components/shared/Badge";
 import DetailsDrawer from "@/components/shared/DetailsDrawer";
 
@@ -43,11 +43,21 @@ export default function CalendarPage() {
   const [selectedDateKey, setSelectedDateKey] = useState<string>(toKey(today.getFullYear(), today.getMonth(), today.getDate()));
   const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null);
 
+  // BUG-003: Schedule Event modal state
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [newEvent, setNewEvent] = useState<Partial<CalEvent>>({
+    title: "", type: "meeting", time: "09:00 AM", contactOrCampaign: "", agent: "", notes: "",
+  });
+
+  // BUG-005: Edit Event modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editEvent, setEditEvent] = useState<CalEvent | null>(null);
+
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
   }, [isLoggedIn, router]);
 
-  // Dynamically generate dummy events relative to the current month to ensure the calendar always looks active.
+  // Dynamically generate dummy events relative to the current month
   const [dummyEvents, setDummyEvents] = useState<Record<string, CalEvent[]>>({});
 
   useEffect(() => {
@@ -64,14 +74,12 @@ export default function CalendarPage() {
       events[key].push(event);
     };
 
-    addEvent(0, { id: "1", title: "Launch Q4 Campaign", time: "09:00 AM", type: "campaign", contactOrCampaign: "Q4 Outreach", agent: "Sarah (Sales)", notes: "Ensure all contacts are verified before launch." });
-    addEvent(0, { id: "2", title: "Follow-up: High Priority Lead", time: "02:30 PM", type: "followup", contactOrCampaign: "Alice Johnson", agent: "Mike (Support)", notes: "Customer requested a callback regarding pricing." });
-    
+    addEvent(0, { id: "1", title: "Launch Q4 Campaign", time: "09:00 AM", type: "campaign", contactOrCampaign: "Q4 Outreach", agent: "Voice-A (Sales)", notes: "Ensure all contacts are verified before launch." });
+    addEvent(0, { id: "2", title: "Follow-up: High Priority Lead", time: "02:30 PM", type: "followup", contactOrCampaign: "Alice Johnson", agent: "Voice-B (Support)", notes: "Customer requested a callback regarding pricing." });
     addEvent(2, { id: "3", title: "Review Weekly Metrics", time: "10:00 AM", type: "meeting", contactOrCampaign: "Internal Team", notes: "Review AI Agent success rates." });
-    addEvent(2, { id: "4", title: "Holiday Special Promo", time: "11:00 AM", type: "campaign", contactOrCampaign: "Holiday Special", agent: "Emma (Onboarding)", notes: "Targeting inactive users." });
-
+    addEvent(2, { id: "4", title: "Holiday Special Promo", time: "11:00 AM", type: "campaign", contactOrCampaign: "Holiday Special", agent: "Voice-C (Followup)", notes: "Targeting inactive users." });
     addEvent(-3, { id: "5", title: "Client Demo", time: "01:00 PM", type: "meeting", contactOrCampaign: "Acme Corp", notes: "Demo the new real-time translation features." });
-    addEvent(5, { id: "6", title: "Callback: Tech Lead", time: "04:00 PM", type: "followup", contactOrCampaign: "Bob Smith", agent: "Mike (Support)", notes: "Discuss technical integration." });
+    addEvent(5, { id: "6", title: "Callback: Tech Lead", time: "04:00 PM", type: "followup", contactOrCampaign: "Bob Smith", agent: "Voice-B (Support)", notes: "Discuss technical integration." });
 
     setDummyEvents(events);
   }, []);
@@ -85,17 +93,12 @@ export default function CalendarPage() {
 
   const cells: { day: number; current: boolean; key: string }[] = [];
   
-  // Fill leading empty days from previous month
   for (let i = firstDay - 1; i >= 0; i--) {
     cells.push({ day: prevMonthDays - i, current: false, key: toKey(viewMonth === 0 ? viewYear - 1 : viewYear, viewMonth === 0 ? 11 : viewMonth - 1, prevMonthDays - i) });
   }
-  
-  // Fill current month days
   for (let d = 1; d <= daysInMonth; d++) {
     cells.push({ day: d, current: true, key: toKey(viewYear, viewMonth, d) });
   }
-  
-  // Fill trailing empty days from next month to complete the 42 grid blocks (6 rows)
   const remaining = 42 - cells.length;
   for (let d = 1; d <= remaining; d++) {
     cells.push({ day: d, current: false, key: toKey(viewMonth === 11 ? viewYear + 1 : viewYear, viewMonth === 11 ? 0 : viewMonth + 1, d) });
@@ -135,6 +138,41 @@ export default function CalendarPage() {
     }
   };
 
+  // BUG-003: Save new scheduled event
+  const handleSaveNewEvent = () => {
+    if (!newEvent.title?.trim()) return;
+    const id = `new-${Date.now()}`;
+    const event: CalEvent = {
+      id,
+      title: newEvent.title!,
+      time: newEvent.time || "09:00 AM",
+      type: (newEvent.type as EventType) || "meeting",
+      contactOrCampaign: newEvent.contactOrCampaign || "",
+      agent: newEvent.agent || "",
+      notes: newEvent.notes || "",
+      date: selectedDateKey,
+    };
+    setDummyEvents(prev => ({
+      ...prev,
+      [selectedDateKey]: [...(prev[selectedDateKey] || []), event],
+    }));
+    setShowScheduleModal(false);
+    setNewEvent({ title: "", type: "meeting", time: "09:00 AM", contactOrCampaign: "", agent: "", notes: "" });
+  };
+
+  // BUG-005: Save edited event
+  const handleSaveEdit = () => {
+    if (!editEvent) return;
+    setDummyEvents(prev => {
+      const dateKey = editEvent.date!;
+      const updated = (prev[dateKey] || []).map(e => e.id === editEvent.id ? editEvent : e);
+      return { ...prev, [dateKey]: updated };
+    });
+    setSelectedEvent(editEvent);
+    setShowEditModal(false);
+    setEditEvent(null);
+  };
+
   return (
     <DashboardShell title="Calendar">
       <div className="flex flex-col h-[calc(100vh-80px)] p-1 sm:p-4">
@@ -148,8 +186,9 @@ export default function CalendarPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* BUG-003: Opens real modal instead of browser alert */}
             <button 
-              onClick={() => alert("Open Schedule Event Modal")}
+              onClick={() => setShowScheduleModal(true)}
               className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
             >
               <Plus className="h-4 w-4" />
@@ -169,22 +208,13 @@ export default function CalendarPage() {
                 {MONTHS[viewMonth]} {viewYear}
               </h2>
               <div className="flex items-center gap-1">
-                <button
-                  onClick={prevMonth}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-                >
+                <button onClick={prevMonth} className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <button
-                  onClick={jumpToToday}
-                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 mx-1"
-                >
+                <button onClick={jumpToToday} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 mx-1">
                   Today
                 </button>
-                <button
-                  onClick={nextMonth}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-                >
+                <button onClick={nextMonth} className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
@@ -193,9 +223,7 @@ export default function CalendarPage() {
             {/* Days Header */}
             <div className="grid grid-cols-7 border-b border-zinc-100 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-900/20 shrink-0">
               {DAYS.map(d => (
-                <div key={d} className="py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  {d}
-                </div>
+                <div key={d} className="py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-500">{d}</div>
               ))}
             </div>
 
@@ -211,7 +239,6 @@ export default function CalendarPage() {
                     key={idx}
                     onClick={() => {
                       setSelectedDateKey(cell.key);
-                      // Update view month if clicking a day from adjacent month
                       const d = new Date(cell.key + "T00:00:00");
                       if (d.getMonth() !== viewMonth) {
                         setViewMonth(d.getMonth());
@@ -223,37 +250,26 @@ export default function CalendarPage() {
                     } ${isSelected ? "ring-2 ring-inset ring-indigo-500/50 dark:ring-indigo-400/50 bg-indigo-50/10 dark:bg-indigo-900/10" : ""}`}
                   >
                     <div className="flex justify-between items-start">
-                      <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium ${
-                          isToday
-                            ? "bg-indigo-600 text-white shadow-md"
-                            : isSelected
-                            ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                            : "text-zinc-700 dark:text-zinc-300"
-                        }`}
-                      >
+                      <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium ${
+                        isToday ? "bg-indigo-600 text-white shadow-md"
+                          : isSelected ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+                          : "text-zinc-700 dark:text-zinc-300"
+                      }`}>
                         {cell.day}
                       </span>
                     </div>
-
-                    {/* Events Container */}
                     <div className="mt-2 flex flex-col gap-1 overflow-y-auto no-scrollbar">
                       {events.slice(0, 3).map((ev) => (
                         <div
                           key={ev.id}
-                          onClick={(e) => {
-                            e.stopPropagation(); // prevent selecting the date again
-                            setSelectedEvent(ev);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); setSelectedEvent(ev); }}
                           className={`truncate rounded px-1.5 py-1 text-[10px] font-semibold border sm:text-xs transition hover:brightness-95 ${getEventColors(ev.type)}`}
                         >
                           {ev.time} - {ev.title}
                         </div>
                       ))}
                       {events.length > 3 && (
-                        <p className="text-[10px] font-semibold text-zinc-500 pl-1">
-                          +{events.length - 3} more
-                        </p>
+                        <p className="text-[10px] font-semibold text-zinc-500 pl-1">+{events.length - 3} more</p>
                       )}
                     </div>
                   </div>
@@ -262,23 +278,18 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          {/* Right Sidebar (Agenda View) */}
+          {/* Right Sidebar */}
           <div className="flex w-full flex-col lg:w-80 shrink-0 gap-4 overflow-y-auto">
-            
-            {/* Selected Date Header */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-[#0B0F19]">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Schedule For</p>
               <h3 className="mt-1 text-xl font-extrabold text-zinc-900 dark:text-white">
                 {new Date(selectedDateKey + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })}
               </h3>
               <p className="mt-1 text-sm text-zinc-500">
-                {selectedEvents.length === 0
-                  ? "No events scheduled"
-                  : `${selectedEvents.length} event${selectedEvents.length > 1 ? "s" : ""} scheduled`}
+                {selectedEvents.length === 0 ? "No events scheduled" : `${selectedEvents.length} event${selectedEvents.length > 1 ? "s" : ""} scheduled`}
               </p>
             </div>
 
-            {/* Agenda List */}
             <div className="flex flex-col gap-3 pb-4">
               {selectedEvents.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
@@ -293,17 +304,12 @@ export default function CalendarPage() {
                     className="group flex flex-col items-start gap-2 rounded-2xl border border-zinc-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:bg-[#0B0F19]"
                   >
                     <div className="flex w-full items-center justify-between">
-                      <Badge variant={getEventVariant(ev.type)}>
-                        {ev.type}
-                      </Badge>
+                      <Badge variant={getEventVariant(ev.type)}>{ev.type}</Badge>
                       <span className="flex items-center gap-1 text-xs font-medium text-zinc-500">
-                        <Clock className="h-3 w-3" />
-                        {ev.time}
+                        <Clock className="h-3 w-3" />{ev.time}
                       </span>
                     </div>
-                    <h4 className="mt-1 text-sm font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
-                      {ev.title}
-                    </h4>
+                    <h4 className="mt-1 text-sm font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">{ev.title}</h4>
                     <span className="flex items-center gap-1.5 text-xs text-zinc-500">
                       {ev.type === "campaign" ? <Target className="h-3 w-3" /> : <User className="h-3 w-3" />}
                       {ev.contactOrCampaign}
@@ -316,12 +322,8 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Details Drawer */}
-      <DetailsDrawer
-        isOpen={!!selectedEvent}
-        onClose={() => setSelectedEvent(null)}
-        title="Event Details"
-      >
+      {/* Event Details Drawer */}
+      <DetailsDrawer isOpen={!!selectedEvent} onClose={() => setSelectedEvent(null)} title="Event Details">
         {selectedEvent && (
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-[#121622]">
@@ -361,7 +363,19 @@ export default function CalendarPage() {
               >
                 Close
               </button>
+              {/* BUG-005/006: Wire action button */}
               <button 
+                onClick={() => {
+                  if (selectedEvent.type === "campaign") {
+                    // BUG-006: View Campaign navigates to campaigns list
+                    router.push("/campaign");
+                  } else {
+                    // BUG-005: Edit Event opens edit modal
+                    setEditEvent({ ...selectedEvent });
+                    setShowEditModal(true);
+                    setSelectedEvent(null);
+                  }
+                }}
                 className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
               >
                 {selectedEvent.type === "campaign" ? "View Campaign" : "Edit Event"}
@@ -370,6 +384,115 @@ export default function CalendarPage() {
           </div>
         )}
       </DetailsDrawer>
+
+      {/* BUG-003: Schedule Event Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" onClick={() => setShowScheduleModal(false)} />
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-white p-6 shadow-2xl dark:border dark:border-zinc-800 dark:bg-[#121622]">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Schedule Event</h3>
+              <button onClick={() => setShowScheduleModal(false)} className="rounded-lg p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+                <X className="h-4 w-4 text-zinc-500" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Event Title *</label>
+                <input value={newEvent.title} onChange={e => setNewEvent(p => ({ ...p, title: e.target.value }))}
+                  placeholder="e.g. Q4 Campaign Launch"
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Type</label>
+                  <select value={newEvent.type} onChange={e => setNewEvent(p => ({ ...p, type: e.target.value as EventType }))}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                    <option value="campaign">Campaign</option>
+                    <option value="followup">Follow-up</option>
+                    <option value="meeting">Meeting</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Time</label>
+                  <input type="time" value={newEvent.time?.replace(" AM","").replace(" PM","")}
+                    onChange={e => setNewEvent(p => ({ ...p, time: e.target.value }))}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Contact / Campaign</label>
+                <input value={newEvent.contactOrCampaign} onChange={e => setNewEvent(p => ({ ...p, contactOrCampaign: e.target.value }))}
+                  placeholder="e.g. Alice Johnson"
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Notes</label>
+                <textarea value={newEvent.notes} onChange={e => setNewEvent(p => ({ ...p, notes: e.target.value }))}
+                  rows={2} placeholder="Optional notes..."
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white resize-none" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => setShowScheduleModal(false)} className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300">Cancel</button>
+              <button onClick={handleSaveNewEvent} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
+                <Save className="h-4 w-4" /> Save Event
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BUG-005: Edit Event Modal */}
+      {showEditModal && editEvent && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-white p-6 shadow-2xl dark:border dark:border-zinc-800 dark:bg-[#121622]">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Edit Event</h3>
+              <button onClick={() => setShowEditModal(false)} className="rounded-lg p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+                <X className="h-4 w-4 text-zinc-500" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Event Title</label>
+                <input value={editEvent.title} onChange={e => setEditEvent(p => p ? { ...p, title: e.target.value } : p)}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Type</label>
+                  <select value={editEvent.type} onChange={e => setEditEvent(p => p ? { ...p, type: e.target.value as EventType } : p)}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                    <option value="campaign">Campaign</option>
+                    <option value="followup">Follow-up</option>
+                    <option value="meeting">Meeting</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Time</label>
+                  <input type="time" value={editEvent.time?.replace(" AM","").replace(" PM","")}
+                    onChange={e => setEditEvent(p => p ? { ...p, time: e.target.value } : p)}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 block mb-1">Notes</label>
+                <textarea value={editEvent.notes} onChange={e => setEditEvent(p => p ? { ...p, notes: e.target.value } : p)}
+                  rows={2}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white resize-none" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => setShowEditModal(false)} className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300">Cancel</button>
+              <button onClick={handleSaveEdit} className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
+                <Save className="h-4 w-4" /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }

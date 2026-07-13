@@ -1,8 +1,22 @@
-import React, { useState } from "react";
-import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { FileSpreadsheet, User, Calendar, Rocket, ChevronDown, Clock } from "lucide-react";
 import EditableScript from "./EditableScript";
 import UploadSource from "./UploadSource";
 import { CampaignFormData, UploadSourceType } from "./types";
+
+// BUG-028: Parse a time string like "09:00" or "09:00 AM" into parts
+function parseTime(raw: string): { hour: string; minute: string; ampm: "AM" | "PM" } {
+  const clean = raw.trim().toUpperCase();
+  const pmMatched = clean.includes("PM");
+  const stripped = clean.replace("AM", "").replace("PM", "").trim();
+  const [h24Str, minStr = "00"] = stripped.split(":");
+  let h24 = parseInt(h24Str || "9", 10);
+  let ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  if (clean.includes("AM")) ampm = "AM";
+  if (clean.includes("PM")) ampm = "PM";
+  let h12 = h24 % 12 || 12;
+  return { hour: String(h12).padStart(2, "0"), minute: minStr.padStart(2, "0").slice(0, 2), ampm };
+}
 
 interface CampaignFormProps {
   formData: CampaignFormData;
@@ -106,9 +120,10 @@ export default function CampaignForm({
         <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#111827] dark:text-zinc-100">
             <Calendar className="h-3.5 w-3.5" />
-            Schedule Date <span className="text-red-500">*</span>
+            Schedule Date & Time <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-2 gap-2">
+            {/* Date picker */}
             <div>
               <input
                 type="date"
@@ -120,14 +135,12 @@ export default function CampaignForm({
               />
               {errors.scheduleDate && <p className="mt-1 text-xs font-medium text-red-500">{errors.scheduleDate}</p>}
             </div>
+            {/* BUG-028: Custom AM/PM time picker */}
             <div>
-              <input
-                type="time"
+              <TimePicker
                 value={formData.scheduleTime}
-                onChange={(e) => onChange({ scheduleTime: e.target.value })}
-                className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 ${
-                  errors.scheduleTime ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 focus:border-violet-400 dark:border-zinc-700'
-                }`}
+                onChange={(t) => onChange({ scheduleTime: t })}
+                error={!!errors.scheduleTime}
               />
               {errors.scheduleTime && <p className="mt-1 text-xs font-medium text-red-500">{errors.scheduleTime}</p>}
             </div>
@@ -169,6 +182,71 @@ export default function CampaignForm({
         <Rocket className="h-4 w-4" />
         Launch Campaign
       </button>
+    </div>
+  );
+}
+
+// ── BUG-028: Custom AM/PM Time Picker ─────────────────────────────────────────
+
+interface TimePickerProps {
+  value: string;
+  onChange: (v: string) => void;
+  error?: boolean;
+}
+
+function TimePicker({ value, onChange, error }: TimePickerProps) {
+  const { hour, minute, ampm } = useMemo(() => parseTime(value || "09:00"), [value]);
+
+  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const minutes = ["00", "15", "30", "45"];
+
+  const emit = (h: string, m: string, ap: "AM" | "PM") =>
+    onChange(`${h}:${m} ${ap}`);
+
+  const baseSelect =
+    `rounded-lg border bg-white px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:bg-zinc-900 dark:text-zinc-100 ${
+      error ? "border-red-400 dark:border-red-500" : "border-zinc-200 focus:border-violet-400 dark:border-zinc-700"
+    }`;
+
+  return (
+    <div className={`flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 dark:bg-zinc-900 ${error ? "border-red-400 dark:border-red-500" : "border-zinc-200 dark:border-zinc-700"}`}>
+      <Clock className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+      {/* Hour */}
+      <select
+        value={hour}
+        onChange={e => emit(e.target.value, minute, ampm)}
+        className="flex-1 bg-transparent text-sm focus:outline-none dark:text-zinc-100 cursor-pointer"
+        aria-label="Hour"
+      >
+        {hours.map(h => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <span className="text-zinc-400 font-bold text-sm">:</span>
+      {/* Minute */}
+      <select
+        value={minute}
+        onChange={e => emit(hour, e.target.value, ampm)}
+        className="flex-1 bg-transparent text-sm focus:outline-none dark:text-zinc-100 cursor-pointer"
+        aria-label="Minute"
+      >
+        {minutes.map(m => <option key={m} value={m}>{m}</option>)}
+      </select>
+      {/* AM/PM toggle */}
+      <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0">
+        {(["AM", "PM"] as const).map(ap => (
+          <button
+            key={ap}
+            type="button"
+            onClick={() => emit(hour, minute, ap)}
+            className={`px-2 py-1 text-xs font-bold transition ${
+              ampm === ap
+                ? "bg-violet-600 text-white"
+                : "bg-white text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            }`}
+          >
+            {ap}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

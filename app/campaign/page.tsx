@@ -38,10 +38,18 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    api.getCampaigns()
-      .then(data => setCampaigns(data as Campaign[]))
-      .catch(err => console.error("Failed to load campaigns:", err))
-      .finally(() => setLoading(false));
+    // BUG-024: Poll every 10s while any campaign is Running
+    const load = () =>
+      api.getCampaigns()
+        .then(data => setCampaigns(data as Campaign[]))
+        .catch(err => console.error("Failed to load campaigns:", err))
+        .finally(() => setLoading(false));
+
+    load();
+    const interval = setInterval(() => {
+      load();
+    }, 10000);
+    return () => clearInterval(interval);
   }, [isLoggedIn]);
 
   if (!isLoggedIn) return null;
@@ -129,7 +137,8 @@ export default function CampaignsPage() {
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
                 { key: "status", label: "Status", options: [{label: "Running", value: "Running"}, {label: "Scheduled", value: "Scheduled"}, {label: "Completed", value: "Completed"}, {label: "Draft", value: "Draft"}] },
-                { key: "agent", label: "Agent", options: [{label: "Sarah (Sales)", value: "Sarah (Sales)"}, {label: "Mike (Support)", value: "Mike (Support)"}, {label: "Emma (Onboarding)", value: "Emma (Onboarding)"}] }
+                // BUG-025: derive agent options dynamically from actual loaded campaigns
+                { key: "agent", label: "Agent", options: Array.from(new Set(campaigns.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
               ]}
               exportFileName="campaigns_export.xlsx"
               onRowClick={setSelectedCampaign}
