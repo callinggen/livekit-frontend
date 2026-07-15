@@ -27,15 +27,15 @@ export default function LoginPage() {
     }
   }, [isLoggedIn, router]);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
-    if (login(email, password)) {
-      return;
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.message || "Failed to login");
     }
-
-    setError("Use the demo credentials below to sign in.");
   };
 
   const handleGoogleLogin = () => {
@@ -147,16 +147,16 @@ export default function LoginPage() {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="login-email" className="mb-2 block text-sm font-medium">
-                Email
+                Email or Phone Number
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
                 <input
                   id="login-email"
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@company.com"
+                  placeholder="you@company.com or +1234567890"
                   className="w-full rounded-2xl border border-zinc-300 bg-white py-3 pl-11 pr-4 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 dark:border-zinc-700 dark:bg-black dark:text-white dark:focus:border-violet-400 dark:focus:ring-violet-500/20"
                 />
               </div>

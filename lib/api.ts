@@ -55,6 +55,7 @@ export interface ResponseLog {
   appointment_date?: string;
   appointment_time?: string;
   customer_name?: string;
+  recording_url?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -102,4 +103,18 @@ export const api = {
 
   /** All completed/in-progress calls (Responses page). */
   getCalls: () => request<ResponseLog[]>("/api/calls"),
+
+  /** BUG-007: Live contact-status counts for the Live Journey panel. */
+  getCampaignLive: (campaignId: number) =>
+    request<{
+      registry: number; standby: number; dialer: number;
+      analysis: number; completed: number; failed: number;
+      campaign_status: string; total_contacts: number;
+    }>(`/api/campaigns/${campaignId}/live`),
+
+  /** BUG-024: Lightweight status poll. */
+  getCampaignStatus: (campaignId: number) =>
+    request<{ status: string; completed: number; failed: number; total: number }>(
+      `/api/campaigns/${campaignId}/status`
+    ),
 };

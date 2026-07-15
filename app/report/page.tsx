@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
-import { downloadFile } from "@/lib/utils";
 import { FileText, Calendar, Download, Sparkles, Loader2, CheckCircle2, Clock } from "lucide-react";
+// BUG-026: import downloadFile removed — now uses jsPDF for real PDF export
 
 export default function ReportPage() {
   const router = useRouter();
@@ -35,15 +35,74 @@ export default function ReportPage() {
     }, 3000);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!reportGenerated) return;
 
-    const reportText = `CallingGen AI Report\nPeriod: ${startDate} to ${endDate}\n\nGenerated sections:\n${reportSections
-      .map((section, index) => `${index + 1}. ${section}`)
-      .join("\n")}`;
+    // BUG-026: Use jsPDF to produce a real PDF file
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 20;
+    const contentWidth = pageWidth - marginX * 2;
 
-    downloadFile(reportText, `callinggen-report-${startDate}-to-${endDate}.txt`, "text/plain;charset=utf-8");
-    setDownloadMessage("Report download started. Check your browser downloads.");
+    // Header gradient bar (simulated with a filled rect)
+    doc.setFillColor(99, 102, 241); // indigo-500
+    doc.rect(0, 0, pageWidth, 18, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("CallingGen AI Performance Report", marginX, 12);
+
+    // Meta info
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Report Period: ${startDate}  →  ${endDate}`, marginX, 28);
+    doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, marginX, 34);
+
+    // Divider
+    doc.setDrawColor(220, 220, 230);
+    doc.setLineWidth(0.4);
+    doc.line(marginX, 38, pageWidth - marginX, 38);
+
+    // Section heading
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text("Report Sections", marginX, 46);
+
+    // Sections list
+    let y = 54;
+    reportSections.forEach((section, i) => {
+      // Alternating row background
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 248, 252);
+        doc.rect(marginX - 2, y - 5, contentWidth + 4, 10, "F");
+      }
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(99, 102, 241);
+      doc.text(String(i + 1).padStart(2, "0"), marginX, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      doc.text(section, marginX + 12, y);
+      doc.setFontSize(8);
+      doc.setTextColor(130, 130, 150);
+      doc.text("AI-generated analysis with data-driven insights", marginX + 12, y + 4);
+      y += 14;
+    });
+
+    // Footer
+    doc.setFillColor(99, 102, 241);
+    doc.rect(0, 282, pageWidth, 15, "F");
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text("CallingGen © — Confidential AI Report", marginX, 291);
+    doc.text(`Page 1`, pageWidth - marginX - 10, 291);
+
+    doc.save(`callinggen-report-${startDate}-to-${endDate}.pdf`);
+    setDownloadMessage("PDF report downloaded successfully.");
   };
 
   const reportSections = [

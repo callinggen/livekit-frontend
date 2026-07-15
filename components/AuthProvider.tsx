@@ -12,14 +12,14 @@ import { useRouter } from "next/navigation";
 interface AuthContextType {
   isLoggedIn: boolean;
   user: { email: string; name: string } | null;
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   user: null,
-  login: () => false,
+  login: async () => false,
   logout: () => {},
 });
 
@@ -58,15 +58,31 @@ export default function AuthProvider({
   }, []);
 
   const login = useCallback(
-    (email: string, password: string): boolean => {
-      if (email === DUMMY_EMAIL && password === DUMMY_PASSWORD) {
-        const userData = { email, name: "Admin User" };
-        setUser(userData);
-        localStorage.setItem("callinggen-auth", JSON.stringify(userData));
-        router.push("/dashboard");
-        return true;
+    async (email: string, password: string): Promise<boolean> => {
+      try {
+        const response = await fetch("http://localhost:8000/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ identifier: email, password }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Assuming user data is fetched separately or we just set it minimally
+          const userData = { email, name: "Authenticated User", token: data.access_token };
+          setUser(userData);
+          localStorage.setItem("callinggen-auth", JSON.stringify(userData));
+          router.push("/dashboard");
+          return true;
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Invalid credentials");
+        }
+      } catch (error: any) {
+        throw error;
       }
-      return false;
     },
     [router]
   );

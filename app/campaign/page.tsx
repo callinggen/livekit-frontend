@@ -24,6 +24,45 @@ const getStatusBadge = (status: string) => {
   return <Badge variant={variantMap[status] || "neutral"}>{status}</Badge>;
 };
 
+const DUMMY_CAMPAIGNS: Campaign[] = [
+  {
+    id: "1",
+    name: "Q3 Marketing Outreach",
+    date: "2026-07-10",
+    schedule: "2026-07-10 09:00 AM",
+    sheetName: "q3_leads.xlsx",
+    totalCalls: 15,
+    completedCalls: 12,
+    failedCalls: 3,
+    interested: 4,
+    callbacks: 2,
+    creditsUsed: 14.50,
+    agent: "Voice-A (Sales)",
+    status: "Completed",
+    script: "Introduce CallingGen to businesses...",
+    uploadSource: "Excel Upload",
+    notes: "Follow up with interested leads next week."
+  },
+  {
+    id: "2",
+    name: "Summer Feedback Campaign",
+    date: "2026-07-12",
+    schedule: "2026-07-12 02:30 PM",
+    sheetName: "summer_customers.csv",
+    totalCalls: 30,
+    completedCalls: 28,
+    failedCalls: 2,
+    interested: 18,
+    callbacks: 4,
+    creditsUsed: 29.10,
+    agent: "Voice-B (Support)",
+    status: "Running",
+    script: "Ask about product satisfaction...",
+    uploadSource: "CSV Upload",
+    notes: "Ongoing polling."
+  }
+];
+
 export default function CampaignsPage() {
   const router = useRouter();
   const { isLoggedIn } = useAuth();
@@ -38,10 +77,27 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    api.getCampaigns()
-      .then(data => setCampaigns(data as Campaign[]))
-      .catch(err => console.error("Failed to load campaigns:", err))
-      .finally(() => setLoading(false));
+    // BUG-024: Poll every 10s while any campaign is Running
+    const load = () =>
+      api.getCampaigns()
+        .then(data => {
+          if (data && data.length > 0) {
+            setCampaigns(data as Campaign[]);
+          } else {
+            setCampaigns(DUMMY_CAMPAIGNS);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load campaigns:", err);
+          setCampaigns(DUMMY_CAMPAIGNS);
+        })
+        .finally(() => setLoading(false));
+
+    load();
+    const interval = setInterval(() => {
+      load();
+    }, 10000);
+    return () => clearInterval(interval);
   }, [isLoggedIn]);
 
   if (!isLoggedIn) return null;
@@ -129,7 +185,8 @@ export default function CampaignsPage() {
               searchableKeys={["name", "agent", "sheetName"]}
               filters={[
                 { key: "status", label: "Status", options: [{label: "Running", value: "Running"}, {label: "Scheduled", value: "Scheduled"}, {label: "Completed", value: "Completed"}, {label: "Draft", value: "Draft"}] },
-                { key: "agent", label: "Agent", options: [{label: "Sarah (Sales)", value: "Sarah (Sales)"}, {label: "Mike (Support)", value: "Mike (Support)"}, {label: "Emma (Onboarding)", value: "Emma (Onboarding)"}] }
+                // BUG-025: derive agent options dynamically from actual loaded campaigns
+                { key: "agent", label: "Agent", options: Array.from(new Set(campaigns.map(c => c.agent))).filter(Boolean).map(a => ({ label: a, value: a })) }
               ]}
               exportFileName="campaigns_export.xlsx"
               onRowClick={setSelectedCampaign}

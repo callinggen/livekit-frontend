@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import DashboardShell from "@/components/DashboardShell";
@@ -45,6 +45,37 @@ export default function CallManagerPage() {
     failed: 0,
   });
   const [launching, setLaunching] = useState(false);
+  // BUG-007: Ref to store the polling interval so we can clear it
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Stop polling on unmount
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  // BUG-007: Start polling /live endpoint every 5s after campaign launch
+  const startLivePolling = (campaignId: number) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const live = await api.getCampaignLive(campaignId);
+        setLiveStats({
+          registry: live.registry,
+          standby: live.standby,
+          dialer: live.dialer,
+          analysis: live.analysis,
+          completed: live.completed,
+          failed: live.failed,
+        });
+        // Stop polling when campaign is no longer running
+        if (live.campaign_status === "Completed" || live.campaign_status === "Failed") {
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      } catch {
+        // silently ignore polling errors
+      }
+    }, 5000);
+  };
 
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login");
@@ -216,6 +247,9 @@ export default function CallManagerPage() {
         completed: 0,
         failed: 0,
       });
+
+      // BUG-007: Start real polling so Live Journey updates in real time
+      startLivePolling(campaign_id);
 
       // Navigate to campaign list
       router.push("/campaign");

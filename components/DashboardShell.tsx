@@ -61,21 +61,23 @@ export default function DashboardShell({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Theme toggle state
+  // Theme toggle — BUG-022/027: persist to localStorage
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
+    // Read saved preference (anti-flash script in layout.tsx already set the class)
+    const saved = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const dark = saved === "dark" || (saved === null && prefersDark);
+    setIsDark(dark);
+    document.documentElement.classList.toggle("dark", dark);
   }, []);
 
   const toggleTheme = () => {
     setIsDark((prev) => {
       const next = !prev;
-      if (next) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      document.documentElement.classList.toggle("dark", next);
+      localStorage.setItem("theme", next ? "dark" : "light");
       return next;
     });
   };
@@ -210,11 +212,15 @@ export default function DashboardShell({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Current Plan Badge */}
-            <div className="hidden items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 dark:border-violet-800/50 dark:bg-violet-950/40 sm:flex">
+            {/* BUG-012: Starter Plan badge is now a clickable button → /pricing */}
+            <button
+              onClick={() => router.push("/pricing")}
+              className="hidden items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 dark:border-violet-800/50 dark:bg-violet-950/40 sm:flex hover:bg-violet-100 dark:hover:bg-violet-900/50 transition cursor-pointer"
+              title="View pricing plans"
+            >
               <Crown className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
               <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Starter Plan</span>
-            </div>
+            </button>
 
             {/* Credits Display */}
             <div className={`hidden items-center gap-1.5 rounded-full border px-3 py-1.5 sm:flex ${credits < 100
