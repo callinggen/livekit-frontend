@@ -55,6 +55,7 @@ export interface ResponseLog {
   appointment_date?: string;
   appointment_time?: string;
   customer_name?: string;
+  recording_url?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
