@@ -31,6 +31,7 @@ interface CampaignFormProps {
   fileSize?: string;
   totalContacts?: number;
   onGoogleSheetLoaded?: (contacts: any[], sheetId: string) => void;
+  isLaunched?: boolean;
 }
 
 const agents = ["Voice-A (Sales)", "Voice-B (Support)", "Voice-C (Followup)", "Voice-D (Survey)"];
@@ -46,6 +47,7 @@ export default function CampaignForm({
   fileSize,
   totalContacts,
   onGoogleSheetLoaded,
+  isLaunched,
 }: CampaignFormProps) {
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
 
@@ -175,13 +177,22 @@ export default function CampaignForm({
         </div>
       </div>
 
-      <button
-        onClick={onSubmit}
-        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#111827] py-3 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
-      >
-        <Rocket className="h-4 w-4" />
-        Launch Campaign
-      </button>
+      {isLaunched ? (
+        <button
+          onClick={() => window.location.href = "/campaign"}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700"
+        >
+          Go to Campaigns
+        </button>
+      ) : (
+        <button
+          onClick={onSubmit}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#111827] py-3 text-sm font-semibold text-white shadow-md transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+        >
+          <Rocket className="h-4 w-4" />
+          Launch Campaign
+        </button>
+      )}
     </div>
   );
 }

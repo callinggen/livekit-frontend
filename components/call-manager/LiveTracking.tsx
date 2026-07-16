@@ -74,7 +74,7 @@ export default function LiveTracking({ stats }: LiveTrackingProps) {
         <div className="relative flex flex-col items-center w-full max-w-[240px]">
           
           {/* Continuous Gradient Background Line - precisely aligned behind icons */}
-          <div className="absolute left-1/2 top-6 bottom-[10px] -ml-[1px] w-[2px] bg-gradient-to-b from-rose-400 via-cyan-400 to-purple-500 z-0 opacity-40 dark:opacity-80" />
+          <div className="absolute left-1/2 top-6 bottom-[10px] -ml-[1px] w-[2px] bg-gradient-to-b from-rose-400 via-cyan-400 to-purple-500 z-0 opacity-40 dark:opacity-80 animate-pulse" />
 
           {/* Vertical Steps */}
           <div className="flex flex-col gap-5 w-full z-10">
@@ -110,8 +110,8 @@ export default function LiveTracking({ stats }: LiveTrackingProps) {
             {/* SVG curves connecting the central line to the cards */}
             <div className="absolute -top-5 left-1/2 w-[160px] -translate-x-1/2 h-5 z-0 pointer-events-none">
               <svg width="100%" height="100%" viewBox="0 0 160 20" preserveAspectRatio="none">
-                <path d="M80 0 C80 10 40 10 40 20" fill="none" stroke="currentColor" strokeWidth="2" className="text-purple-400/50 dark:text-purple-500/80" />
-                <path d="M80 0 C80 10 120 10 120 20" fill="none" stroke="currentColor" strokeWidth="2" className="text-purple-400/50 dark:text-purple-500/80" />
+                <path d="M80 0 C80 10 40 10 40 20" fill="none" stroke="currentColor" strokeWidth="2" className="text-purple-400/50 dark:text-purple-500/80 animate-pulse" />
+                <path d="M80 0 C80 10 120 10 120 20" fill="none" stroke="currentColor" strokeWidth="2" className="text-purple-400/50 dark:text-purple-500/80 animate-pulse" />
               </svg>
             </div>
 

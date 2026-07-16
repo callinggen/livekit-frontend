@@ -45,6 +45,7 @@ export default function CallManagerPage() {
     failed: 0,
   });
   const [launching, setLaunching] = useState(false);
+  const [launched, setLaunched] = useState(false);
   // BUG-007: Ref to store the polling interval so we can clear it
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -250,9 +251,7 @@ export default function CallManagerPage() {
 
       // BUG-007: Start real polling so Live Journey updates in real time
       startLivePolling(campaign_id);
-
-      // Navigate to campaign list
-      router.push("/campaign");
+      setLaunched(true);
 
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unable to start campaign.";
@@ -281,6 +280,7 @@ export default function CallManagerPage() {
               fileSize={fileSize}
               totalContacts={contacts.length}
               onGoogleSheetLoaded={handleGoogleSheetLoaded}
+              isLaunched={launched}
             />
           </div>
 
