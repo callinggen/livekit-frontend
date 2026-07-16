@@ -19,6 +19,7 @@ interface UploadSourceProps {
   onChangeSinglePhone?: (phone: string) => void;
   errors?: Record<string, string>;
   onGoogleSheetLoaded?: (contacts: Contact[], sheetId: string) => void;
+  contacts?: Contact[];
 }
 
 const sourceOptions: { value: UploadSourceType; label: string; icon: React.ReactNode }[] = [
@@ -44,6 +45,7 @@ export default function UploadSource({
   onChangeSinglePhone,
   errors,
   onGoogleSheetLoaded,
+  contacts,
 }: UploadSourceProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -209,13 +211,28 @@ export default function UploadSource({
               onChange={handleFileSelect}
             />
             {fileUploaded ? (
-              <>
+              <div className="flex flex-col items-center w-full">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
                 <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Upload Successful!</p>
-                <p className="text-xs text-emerald-600/70 dark:text-emerald-500/50 mt-1">
+                <p className="text-xs text-emerald-600/70 dark:text-emerald-500/50 mt-1 mb-4">
                   {fileName} ({fileSize}) — {totalContacts} contacts loaded
                 </p>
-              </>
+                {contacts && contacts.length > 0 && (
+                  <div className="w-full max-h-32 overflow-y-auto rounded-lg border border-emerald-200 bg-white/50 p-1 text-left dark:border-emerald-800/30 dark:bg-[#121217]/50 shadow-inner">
+                    {contacts.slice(0, 5).map((c, i) => (
+                      <div key={i} className="flex justify-between py-1.5 px-3 text-[11px] border-b border-emerald-100 last:border-0 dark:border-emerald-900/30">
+                        <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate pr-2 max-w-[50%]">{c.name}</span>
+                        <span className="text-zinc-500 font-mono shrink-0">{c.phone}</span>
+                      </div>
+                    ))}
+                    {contacts.length > 5 && (
+                      <div className="py-1.5 px-3 text-[10px] text-center text-zinc-400 font-medium">
+                        + {contacts.length - 5} more contacts
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">

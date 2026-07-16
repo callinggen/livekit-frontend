@@ -281,6 +281,7 @@ export default function CallManagerPage() {
               totalContacts={contacts.length}
               onGoogleSheetLoaded={handleGoogleSheetLoaded}
               isLaunched={launched}
+              contacts={contacts}
             />
           </div>
 

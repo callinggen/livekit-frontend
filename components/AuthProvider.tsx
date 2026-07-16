@@ -49,7 +49,13 @@ export default function AuthProvider({
       const stored = localStorage.getItem("callinggen-auth");
       if (stored) {
         try {
-          setUser(JSON.parse(stored));
+          const parsedUser = JSON.parse(stored);
+          if (parsedUser.name === "Authenticated User" && parsedUser.email) {
+            const username = parsedUser.email.split('@')[0];
+            parsedUser.name = username.charAt(0).toUpperCase() + username.slice(1);
+            localStorage.setItem("callinggen-auth", JSON.stringify(parsedUser));
+          }
+          setUser(parsedUser);
         } catch {
           localStorage.removeItem("callinggen-auth");
         }
@@ -70,8 +76,10 @@ export default function AuthProvider({
 
         if (response.ok) {
           const data = await response.json();
-          // Assuming user data is fetched separately or we just set it minimally
-          const userData = { email, name: "Authenticated User", token: data.access_token };
+          const username = email.split('@')[0];
+          const derivedName = username.charAt(0).toUpperCase() + username.slice(1);
+          const displayName = data.full_name || derivedName;
+          const userData = { email, name: displayName, token: data.access_token };
           setUser(userData);
           localStorage.setItem("callinggen-auth", JSON.stringify(userData));
           router.push("/dashboard");
